@@ -76,6 +76,8 @@ jobs:
   commit-binaries:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
