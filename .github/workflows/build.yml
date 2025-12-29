@@ -16,11 +16,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # macOS builds
-          - os: macos-14  # Apple Silicon runner
+          # macOS builds (both cross-compiled from ARM64 runner)
+          - os: macos-14
             rid: osx-arm64
             output_dir: darwin-arm64
-          - os: macos-13  # Intel runner
+          - os: macos-14
             rid: osx-x64
             output_dir: darwin-x64
           # Linux builds (cross-compile from x64)
