@@ -1,0 +1,3 @@
+[submodule "Clippit"]
+	path = Clippit
+	url = https://github.com/dcjohnston/Clippit.git

@@ -1,0 +1,116 @@
+name: Build Binaries
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'Clippit/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # macOS builds
+          - os: macos-14  # Apple Silicon runner
+            rid: osx-arm64
+            output_dir: darwin-arm64
+          - os: macos-13  # Intel runner
+            rid: osx-x64
+            output_dir: darwin-x64
+          # Linux builds (cross-compile from x64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            output_dir: linux-x64
+          - os: ubuntu-latest
+            rid: linux-arm64
+            output_dir: linux-arm64
+          - os: ubuntu-latest
+            rid: linux-musl-x64
+            output_dir: linux-musl-x64
+          - os: ubuntu-latest
+            rid: linux-musl-arm64
+            output_dir: linux-musl-arm64
+          # Windows build
+          - os: windows-latest
+            rid: win-x64
+            output_dir: win-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Build
+        run: |
+          dotnet publish cli/ClippitCli.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:DebugType=none \
+            -p:DebugSymbols=false \
+            -o src/clippit/bin/${{ matrix.output_dir }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippit-${{ matrix.output_dir }}
+          path: src/clippit/bin/${{ matrix.output_dir }}/
+
+  commit-binaries:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: src/clippit/bin/
+          pattern: clippit-*
+          merge-multiple: false
+
+      - name: Reorganize artifacts
+        run: |
+          cd src/clippit/bin
+          # Download creates clippit-<platform>/<files>, we want <platform>/<files>
+          for dir in clippit-*/; do
+            platform="${dir#clippit-}"
+            platform="${platform%/}"
+            if [ -d "$dir" ]; then
+              mkdir -p "$platform"
+              mv "$dir"/* "$platform/" 2>/dev/null || true
+              rmdir "$dir" 2>/dev/null || true
+            fi
+          done
+          ls -la */
+
+      - name: Commit binaries
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/clippit/bin/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update pre-built binaries [skip ci]"
+            git push
+          fi
