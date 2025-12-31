@@ -2,7 +2,6 @@
 
 import os
 import platform
-import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -25,7 +24,6 @@ class ClippitEngine:
                      auto-detects based on platform.
         """
         self.cli_path = cli_path or os.environ.get("CLIPPIT_CLI_PATH") or self._get_default_path()
-        self._ensure_executable()
 
     def _get_default_path(self) -> str:
         """Determine the correct binary path for the current platform."""
@@ -71,15 +69,6 @@ class ClippitEngine:
             return "musl" in result.stderr.lower() or "musl" in result.stdout.lower()
         except (FileNotFoundError, subprocess.SubprocessError):
             return False
-
-    def _ensure_executable(self) -> None:
-        """Ensure the binary has executable permissions (Unix only)."""
-        if platform.system().lower() != "windows":
-            path = Path(self.cli_path)
-            if path.exists():
-                current_mode = path.stat().st_mode
-                if not (current_mode & stat.S_IXUSR):
-                    path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     def run_redline(
         self,
