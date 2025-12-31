@@ -67,10 +67,6 @@ jobs:
             -p:DebugSymbols=false \
             -o src/clippit/bin/${{ matrix.output_dir }}
 
-      - name: Make binary executable (Unix only)
-        if: runner.os != 'Windows'
-        run: chmod +x src/clippit/bin/${{ matrix.output_dir }}/clippit-compare
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
